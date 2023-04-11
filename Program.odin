@@ -2,17 +2,12 @@ package BDHarness
 
 import "core:fmt"
 import str "core:strings"
-import stc "core:strconv"
-import "core:reflect"
 import "core:os"
-import "core:io"
 import win "core:sys/windows"
 import i "core:bufio"
 import BD "./Compiler"
 import dn "core:dynlib"
 import "core:time"
-import fp "core:path/filepath"
-import sp "core:path/slashpath"
 import libc "core:c/libc"
 
 main :: proc()

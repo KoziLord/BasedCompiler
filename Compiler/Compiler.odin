@@ -2,12 +2,8 @@ package BD
 
 import "core:fmt"
 import str "core:strings"
-import stc "core:strconv"
-import "core:reflect"
 import "core:os"
 import "core:io"
-import win "core:sys/windows"
-import i "core:bufio"
 
 ReplSignal :: enum
 {
@@ -19,17 +15,12 @@ ReplSignal :: enum
 repl :: proc() -> ReplSignal
 {   
     buf := [256]byte{}
+    //FIX: Need to handle errors here
     n, err := os.read(os.stdin, buf[:])
-    //fmt.printf("Error code: %i\n", err)
-    /*
-    if err > 0
-    {
-        fmt.printf("Error occured when reading the input. Error code: %i\n", err)
-        continue
-    }
-    */
+
     text := string(buf[:n])        
     
+    //NOTE: Put the REPL functions handling in a function? 
     if str.has_prefix(text, "#STOP") 
     {
         fmt.println("Stopping the compiler loop...")
@@ -159,6 +150,7 @@ LiteralToken :: union
     StringLiteralToken,
 }
 
+//NOTE: Not used right now. Kept as reference.
 TokenType :: enum
 {
     Invalid,
