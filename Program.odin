@@ -13,7 +13,7 @@ import libc "core:c/libc"
 main :: proc()
 {
     compilerLib : dn.Library
-    try_update_compiler(&compilerLib)
+    update_compiler(&compilerLib)
     run := true
     for run
     {
@@ -22,8 +22,7 @@ main :: proc()
             case .Quit: run = false
             case .Recompile:
             {
-                 compile_compiler()
-                 try_update_compiler(&compilerLib)
+                update_compiler(&compilerLib)
             }
             case .None:
         }
@@ -36,28 +35,18 @@ compile_compiler :: proc()
 {
     libc.system("odin build ./Compiler -build-mode:dll -out:./Compiler.dll")
 }
-try_update_compiler :: proc(compilerLib : ^dn.Library)
+update_compiler :: proc(compilerLib : ^dn.Library)
 {
-    if !os.exists("./Compiler.dll")
-    {
-        fmt.println("No compiler dll found, compiling a new one...")
-        compile_compiler()
 
-        fileInfo, errNo := os.stat("./Compiler.dll")
-        defer os.file_info_delete(fileInfo)
-        modTime := fileInfo.modification_time
+    fmt.println("Compiling the compiler...")
+    compile_compiler()
 
-        reload_compiler(compilerLib, modTime)
-        return
-    }
     fileInfo, errNo := os.stat("./Compiler.dll")
     defer os.file_info_delete(fileInfo)
     modTime := fileInfo.modification_time
-    diff := time.diff(lastCompilerUpdate, modTime)
-    if diff > 0 do reload_compiler(compilerLib, modTime)
-    
-    return
 
+    reload_compiler(compilerLib, modTime)
+    return
 
     reload_compiler :: proc(compilerLib : ^dn.Library, modTime : time.Time)
     {
