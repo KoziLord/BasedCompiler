@@ -48,7 +48,6 @@ repl :: proc() -> ReplSignal
         return .Recompile
     }
     
-    fmt.println(transmute([]byte)text)
     reader := str.Reader{}
     str.reader_init(&reader, text)
     output := lex(reader)
