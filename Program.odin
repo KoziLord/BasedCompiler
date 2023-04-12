@@ -37,39 +37,34 @@ compile_compiler :: proc()
 }
 update_compiler :: proc(compilerLib : ^dn.Library)
 {
-
-    fmt.println("Compiling the compiler...")
+    fmt.println("\\\\Compiling the compiler...")
     compile_compiler()
 
     fileInfo, errNo := os.stat("./Compiler.dll")
     defer os.file_info_delete(fileInfo)
     modTime := fileInfo.modification_time
+    
+    fmt.println("\\\\Reloading the compiler...")
 
-    reload_compiler(compilerLib, modTime)
-    return
+    dn.unload_library(compilerLib^)
 
-    reload_compiler :: proc(compilerLib : ^dn.Library, modTime : time.Time)
-    {
-        fmt.println("\\\\Reloading the compiler...")
+    dir := os.get_current_directory(context.temp_allocator)
+    fileDir := str.concatenate({dir, "/Compiler.dll"}, context.temp_allocator)
+    newDir := str.concatenate({dir, "/Compiler_tmp.dll"}, context.temp_allocator)
+    win.CopyFileExW(win.utf8_to_wstring(fileDir),
+                    win.utf8_to_wstring(newDir), nil, nil, nil, 0)
 
-        dn.unload_library(compilerLib^)
+    lib, libLoaded := dn.load_library("./Compiler_tmp.dll")
+    if !libLoaded do panic("Could not load the compiler, exiting...")
 
-        dir := os.get_current_directory(context.temp_allocator)
-        fileDir := str.concatenate({dir, "/Compiler.dll"}, context.temp_allocator)
-        newDir := str.concatenate({dir, "/Compiler_tmp.dll"}, context.temp_allocator)
-        win.CopyFileExW(win.utf8_to_wstring(fileDir),
-                        win.utf8_to_wstring(newDir), nil, nil, nil, 0)
+    symbol, symbolFound := dn.symbol_address(lib, "repl")
+    if !symbolFound do panic("Could not load the repl function, exiting...")
+        
+    compilerLib^ = lib
+    repl = auto_cast symbol
+    lastCompilerUpdate = modTime
 
-        lib, libLoaded := dn.load_library("./Compiler_tmp.dll")
-        if !libLoaded do panic("Could not load the compiler, exiting...")
-
-        symbol, symbolFound := dn.symbol_address(lib, "repl")
-        if !symbolFound do panic("Could not load the repl function, exiting...")
-            
-        compilerLib^ = lib
-        repl = auto_cast symbol
-        lastCompilerUpdate = modTime
-    }
+    return   
 }
 
 repl : proc() -> BD.ReplSignal

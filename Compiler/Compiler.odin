@@ -43,12 +43,12 @@ repl :: proc() -> ReplSignal
         fmt.print("\\\\File end\n")
         text = string(file)
     }
-    if str.has_prefix(text, "#COMPILE")
+    if str.has_prefix(text, "#COMPILE") || str.has_prefix(text, "#COMP")
     {
-        fmt.println("Recompiling the compiler...")
         return .Recompile
     }
     
+    fmt.println(transmute([]byte)text)
     reader := str.Reader{}
     str.reader_init(&reader, text)
     output := lex(reader)
@@ -60,11 +60,10 @@ repl :: proc() -> ReplSignal
 
 lex :: proc(input : str.Reader) -> (output : [dynamic]Token)
 {
-
     input := input
     pos := TokenPos{1, 0}
     for r in read_rune(&input, &pos)
-    {
+   {
         if is_whitespace(r) do continue
         if token := get_symbol_token(r, pos); token != nil
         {
@@ -100,6 +99,7 @@ lex :: proc(input : str.Reader) -> (output : [dynamic]Token)
             number, error := get_number_token(&input, &pos)
             if error == nil
             {
+
                 append(&output, number)
                 continue
             }   
@@ -138,13 +138,7 @@ get_keyword_token :: proc(input : string, pos : TokenPos) -> KeywordToken
         case:           return nil
     }
 }
-NumType :: enum
-{
-    Error,
-    Unknown,
-    Integer,
-    Float,
-}
+
 get_number_token :: proc(input : ^str.Reader, pos : ^TokenPos) -> (token : LiteralToken, error : Maybe(ErrorToken))
 {
     copy := input^
@@ -160,12 +154,10 @@ get_number_token :: proc(input : ^str.Reader, pos : ^TokenPos) -> (token : Liter
 
         if _, ok := sym.(DotToken); ok
         {
-            fmt.println("Saw a dot")
             if isFloat
             {
                 if error == nil
                 {
-                    fmt.println("Error")
                     error = ErrorToken{Position = {endPos.Line, endPos.Column - 1}, Message = "Extra \'.\' found in a float literal"}
                 }
             }
@@ -176,22 +168,22 @@ get_number_token :: proc(input : ^str.Reader, pos : ^TokenPos) -> (token : Liter
 
         if is_whitespace(r) || sym != nil
         {
-            str.reader_unread_rune(input)
-            unread_rune(&copy, &endPos)
-
-            word, wordPos := input.s[input.i:copy.i], pos^
-            switch isFloat
-            {
-                case true:  token = FloatLiteralToken{Position = pos^, Value = word}
-                case false: token = IntegerLiteralToken{Position = pos^, Value = word}
-            }
-            input^ = copy
-            pos^ = endPos
-
-            return
+            break
         }
     }
-    return {}, {}
+    str.reader_unread_rune(input)
+    unread_rune(&copy, &endPos)
+
+    word, wordPos := input.s[input.i:copy.i], pos^
+    switch isFloat
+    {
+        case true:  token = FloatLiteralToken{Position = pos^, Value = word}
+        case false: token = IntegerLiteralToken{Position = pos^, Value = word}
+    }
+    input^ = copy
+    pos^ = endPos
+
+    return
 }
 read_word :: proc(input : ^str.Reader, pos : ^TokenPos) -> (word : string, wordPos : TokenPos, ok : bool)
 {
@@ -208,16 +200,17 @@ read_word :: proc(input : ^str.Reader, pos : ^TokenPos) -> (word : string, wordP
 
         if is_whitespace(r) || sym != nil
         {
-            str.reader_unread_rune(input)
-            unread_rune(&copy, &endPos)
-            word, wordPos, ok = input.s[input.i:copy.i], pos^, true
-            input^ = copy
-            pos^ = endPos
-
-            return
+            break
         }
     }
-    return {}, {}, false
+
+    str.reader_unread_rune(input)
+    unread_rune(&copy, &endPos)
+    word, wordPos, ok = input.s[input.i:copy.i], pos^, true
+    input^ = copy
+    pos^ = endPos
+
+    return
 }
 
 is_whitespace :: proc(r : rune) -> bool

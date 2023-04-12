@@ -1,5 +1,6 @@
+.vs
 *.exe
 *.dll
 *.lib
 *.exp
-.vs
+*.bak

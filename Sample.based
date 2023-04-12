@@ -3,5 +3,5 @@ package Sample
 //Comment: Mutable global variable declaration
 mut mutGlobalVar : int = 12
 
-constVar : int : 19291 //This is a comment, this should be ignored by the compiler.
-globalVar : f32 = epic
+constVar : int = 19291 //This is a comment, this should be ignored by the compiler.
+globalVar : f32 = 19292
