@@ -55,7 +55,7 @@ repl :: proc() -> ReplSignal
 
     output := Lexing.lex(reader)
     defer delete(output)
-    
+
     for t in output do fmt.printf("%v\n", t)
     
     return .None

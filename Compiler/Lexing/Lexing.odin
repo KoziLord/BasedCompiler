@@ -5,6 +5,35 @@ import str "core:strings"
 import "core:os"
 import "core:io"
 
+Either :: union(A : typeid, B : typeid)
+{
+    A, B
+}
+TokenPos :: struct {Line, Column : i32}
+TokenBase :: struct
+{
+    using Position : TokenPos,
+}
+Token :: union
+{
+    ErrorToken,
+    SymbolToken,
+    KeywordToken,
+    LiteralToken,
+    IdentfierToken,
+}
+ErrorToken :: struct
+{
+    using Base : TokenBase,
+    Message : string,
+}
+
+IdentfierToken :: struct 
+{
+    using Base : TokenBase,
+    Value : string,
+}
+
 lex :: proc(input : str.Reader) -> (output : [dynamic]Token)
 {
     input := input
@@ -43,16 +72,18 @@ lex :: proc(input : str.Reader) -> (output : [dynamic]Token)
         //IsLiteral
         if is_digit(r)
         {
-            number, error := get_number_token(&input, &pos)
-            if error == nil
+            token := get_number_token(&input, &pos)
+            if token == nil
             {
-
-                append(&output, number)
+                panic("Unreachable: get_number_token returned nil")
+            }
+            if error, is_error := token.(ErrorToken); is_error
+            {
+                append(&output, error)
                 continue
-            }   
-            errToken, ok := error.(ErrorToken)
-            fmt.println(ok)
-            append(&output, errToken)
+            }
+            
+            append(&output, token.(LiteralToken))
             continue   
         }
 
@@ -73,54 +104,6 @@ lex :: proc(input : str.Reader) -> (output : [dynamic]Token)
     return
 }
 
-
-
-get_number_token :: proc(input : ^str.Reader, pos : ^TokenPos) -> (token : LiteralToken, error : Maybe(ErrorToken))
-{
-    copy := input^
-    endPos := pos^
-    isFloat := false
-    for r in read_rune(&copy, &endPos)
-    {
-        sym := get_symbol_token(r, pos^)
-        if _, ok := sym.(DiscardToken); ok
-        {
-            sym = nil
-        }
-
-        if _, ok := sym.(DotToken); ok
-        {
-            if isFloat
-            {
-                if error == nil
-                {
-                    error = ErrorToken{Position = {endPos.Line, endPos.Column - 1}, Message = "Extra \'.\' found in a float literal"}
-                }
-            }
-            isFloat = true
-
-            sym = nil
-        }
-
-        if is_whitespace(r) || sym != nil
-        {
-            break
-        }
-    }
-    str.reader_unread_rune(input)
-    unread_rune(&copy, &endPos)
-
-    word, wordPos := input.s[input.i:copy.i], pos^
-    switch isFloat
-    {
-        case true:  token = FloatLiteralToken{Position = pos^, Value = word}
-        case false: token = IntegerLiteralToken{Position = pos^, Value = word}
-    }
-    input^ = copy
-    pos^ = endPos
-
-    return
-}
 read_word :: proc(input : ^str.Reader, pos : ^TokenPos) -> (word : string, wordPos : TokenPos, ok : bool)
 {
     copy := input^
@@ -187,40 +170,3 @@ skip_to_eol :: proc(input : ^str.Reader, pos : ^TokenPos)
         if r == '\n' do break
     }
 }
-
-TokenPos :: struct {Line, Column : i32}
-TokenBase :: struct
-{
-    using Position : TokenPos,
-}
-Token :: union
-{
-    ErrorToken,
-    SymbolToken,
-    KeywordToken,
-    LiteralToken,
-    IdentfierToken,
-}
-ErrorToken :: struct
-{
-    using Base : TokenBase,
-    Message : string,
-}
-
-
-//LITERALS
-LiteralToken :: union
-{
-    IntegerLiteralToken,
-    FloatLiteralToken,
-    StringLiteralToken,
-}
-LiteralTokenBase :: struct
-{
-    using Base : TokenBase,
-    Value : string,
-}
-IdentfierToken :: distinct LiteralTokenBase
-IntegerLiteralToken :: distinct LiteralTokenBase
-FloatLiteralToken :: distinct LiteralTokenBase
-StringLiteralToken :: distinct LiteralTokenBase
