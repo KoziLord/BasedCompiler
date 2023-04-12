@@ -1,4 +1,4 @@
-package BDHarness
+package ReplHarness
 
 import "core:fmt"
 import str "core:strings"

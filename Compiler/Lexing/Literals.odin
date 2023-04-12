@@ -26,29 +26,35 @@ get_number_token :: proc(input : ^str.Reader, pos : ^TokenPos) -> (token : Eithe
     isFloat := false
     for r in read_rune(&copy, &endPos)
     {
-        sym := get_symbol_token(r, pos^)
-        if _, ok := sym.(DiscardToken); ok
+        if !is_digit(r)
         {
-            sym = nil
-        }
-
-        if _, ok := sym.(DotToken); ok
-        {
-            if isFloat
+            sym := get_symbol_token(r, pos^)
+            if _, ok := sym.(DiscardToken); ok
             {
-                if token == nil
-                {
-                    token = ErrorToken{Position = {endPos.Line, endPos.Column - 1}, Message = "Extra \'.\' found in a float literal"}
-                }
+                sym = nil
             }
-            isFloat = true
 
-            sym = nil
-        }
+            if _, ok := sym.(DotToken); ok
+            {
+                if isFloat
+                {
+                    if token == nil
+                    {
+                        token = ErrorToken{Position = {endPos.Line, endPos.Column - 1}, Message = "Extra \'.\' found in a float literal"}
+                    }
+                }
+                isFloat = true
 
-        if is_whitespace(r) || sym != nil
-        {
-            break
+                sym = nil
+            }
+            else if is_whitespace(r) || sym != nil
+            {
+                break
+            }
+            else if token == nil
+            {
+                token = ErrorToken{Position = endPos, Message = "Invalid token in a number literal"}
+            }       
         }
     }
     str.reader_unread_rune(input)
@@ -61,8 +67,8 @@ get_number_token :: proc(input : ^str.Reader, pos : ^TokenPos) -> (token : Eithe
         case true:  t = FloatLiteralToken{Position = pos^, Value = word}
         case false: t = IntegerLiteralToken{Position = pos^, Value = word}
     }
-    if t == nil do token = t
-    
+    if token == nil do token = t
+
     input^ = copy
     pos^ = endPos
 
