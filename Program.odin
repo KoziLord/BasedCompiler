@@ -13,7 +13,8 @@ import libc "core:c/libc"
 main :: proc()
 {
     compilerLib : dn.Library
-    update_compiler(&compilerLib)
+    lastUpdate := time.Time{}
+    update_compiler(&compilerLib, &lastUpdate)
     run := true
     for run
     {
@@ -22,7 +23,7 @@ main :: proc()
             case .Quit: run = false
             case .Recompile:
             {
-                update_compiler(&compilerLib)
+                update_compiler(&compilerLib, &lastUpdate)
             }
             case .None:
         }
@@ -30,15 +31,12 @@ main :: proc()
     }
 }
 
-lastCompilerUpdate := time.Time{}
-compile_compiler :: proc()
-{
-    libc.system("odin build ./Compiler -build-mode:dll -out:./Compiler.dll")
-}
-update_compiler :: proc(compilerLib : ^dn.Library)
+update_compiler :: proc(compilerLib : ^dn.Library, lastCompilerUpdate : ^time.Time)
 {
     fmt.println("\\\\Compiling the compiler...")
-    compile_compiler()
+    
+    //Compile compiler
+    libc.system("odin build ./Compiler -build-mode:dll -out:./Compiler.dll")
 
     fileInfo, errNo := os.stat("./Compiler.dll")
     defer os.file_info_delete(fileInfo)
@@ -62,7 +60,7 @@ update_compiler :: proc(compilerLib : ^dn.Library)
         
     compilerLib^ = lib
     repl = auto_cast symbol
-    lastCompilerUpdate = modTime
+    lastCompilerUpdate^ = modTime
 
     return   
 }

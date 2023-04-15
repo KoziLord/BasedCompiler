@@ -28,11 +28,8 @@ get_number_token :: proc(input : ^str.Reader, pos : ^TokenPos) -> (token : Eithe
     {
         if !is_digit(r)
         {
-            sym := get_symbol_token(r, pos^)
-            if _, ok := sym.(DiscardToken); ok
-            {
-                sym = nil
-            }
+            unread_rune(&copy, &endPos)
+            sym := get_symbol_token(input, pos)
 
             if _, ok := sym.(DotToken); ok
             {

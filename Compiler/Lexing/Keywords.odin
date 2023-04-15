@@ -2,6 +2,7 @@ package Lexing
 
 KeywordToken :: union
 {
+    UnderscoreToken,
     ImportToken,
     PackageToken,
     MutToken,
@@ -12,9 +13,9 @@ KeywordToken :: union
     RequiresToken,
     UseToken,
     UsingToken,
-
 }
 
+UnderscoreToken :: distinct TokenBase
 ImportToken :: distinct TokenBase
 PackageToken :: distinct TokenBase
 MutToken :: distinct TokenBase
@@ -30,6 +31,7 @@ get_keyword_token :: proc(input : string, pos : TokenPos) -> KeywordToken
 {
     switch input
     {
+        case "_":        return UnderscoreToken{pos}
         case "import":   return ImportToken{pos}
         case "package":  return PackageToken{pos}
         case "struct":   return StructToken{pos}

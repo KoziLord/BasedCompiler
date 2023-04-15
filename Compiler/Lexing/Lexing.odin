@@ -4,10 +4,10 @@ import "core:fmt"
 import str "core:strings"
 import "core:os"
 import "core:io"
-
+import "core:slice"
 Either :: union(A : typeid, B : typeid)
 {
-    A, B
+    A, B,
 }
 TokenPos :: struct {Line, Column : i32}
 TokenBase :: struct
@@ -21,6 +21,8 @@ Token :: union
     KeywordToken,
     LiteralToken,
     IdentfierToken,
+    CommentToken,
+    WhitespaceToken,
 }
 ErrorToken :: struct
 {
@@ -34,98 +36,94 @@ IdentfierToken :: struct
     Value : string,
 }
 
+
+
 lex :: proc(input : str.Reader) -> (output : [dynamic]Token)
 {
     input := input
     pos := TokenPos{1, 0}
-    for r in read_rune(&input, &pos)
-    {
-        if is_whitespace(r) do continue
-        if token := get_symbol_token(r, pos); token != nil
+
+    for 
+    {    
+        _, _, error := str.reader_read_rune(&input)
+        if error != .None do break
+        _ = str.reader_unread_rune(&input)  
+        
+        if token := get_whitespace_token(&input, &pos); token != nil
+        {
+            append(&output, token)
+        }
+               
+        if token := get_symbol_token(&input, &pos); token != nil
+        {
+            append(&output, token)
+            continue
+        }
+
+        if token := get_comment_token(&input, &pos); token != nil
         {
             append(&output, token)
             continue
         }
     
-        //Check if comment
-        if r == '/'
+        if token := get_indentifier_or_keyword(&input, &pos); token != nil
         {
-            r, ok := read_rune(&input, &pos)
-            if !ok
+            if t, ok := token.(KeywordToken); ok
             {
-                panic("AAAAAAAAAAAAAAAAAAAAAAAAAA")
+                append(&output, t)
+            }
+            else if t, ok := token.(IdentfierToken); ok
+            {
+                append(&output, t)
             }
 
-            //Is comment
-            if r == '/'
-            {
-                skip_to_eol(&input, &pos)
-                continue
-            }
-            else
-            {
-                append(&output, ErrorToken{Position = pos, Message = "Stray / found. Were you perhaps trying to add a comment?"})
-                continue
-            }
-        }
-
-        //IsLiteral
-        if is_digit(r)
-        {
-            token := get_number_token(&input, &pos)
-            if token == nil
-            {
-                panic("Unreachable: get_number_token returned nil")
-            }
-            if error, is_error := token.(ErrorToken); is_error
-            {
-                append(&output, error)
-                continue
-            }
-            
-            append(&output, token.(LiteralToken))
-            continue   
-        }
-
-        if word, wordPos, ok := read_word(&input, &pos); ok
-        {
-            //isKeyword
-            if keyword := get_keyword_token(word, wordPos); keyword != nil
-            {
-                append(&output, keyword)
-                continue
-            }
-           //Identifier
-            append(&output, auto_cast IdentfierToken{Position = wordPos, Value = word})
             continue
         }
+        fmt.printf("Unhandled rune in lexer(%i, %i)\n", pos.Line, pos.Column)
     }
 
     return
 }
 
-read_word :: proc(input : ^str.Reader, pos : ^TokenPos) -> (word : string, wordPos : TokenPos, ok : bool)
+//Keywords are essentially reserved identifiers
+get_indentifier_or_keyword :: proc(input : ^str.Reader, pos : ^TokenPos) -> (token : Either(IdentfierToken, KeywordToken))
 {
+    //NOTE@PERF: Linear Search, could be changed into:
+    //           A map for O(1) search
+    //           An ordered slice for Binary Search
+    @static ILLEGAL_RUNES := []rune {'=',
+        '+', '-', '*', '/', '%',
+        '!', '?', '.', ',', ':', ';',
+        '~', '^', '&', '|',
+        '<', '>', '(', ')', '{', '}', '[', ']',
+        ' '/*SPACE*/, '	'/*TAB*/, '\n', '\r',
+    } 
+
     copy := input^
     endPos := pos^
 
     for r in read_rune(&copy, &endPos)
     {
-        sym := get_symbol_token(r, pos^)
-        if _, ok := sym.(DiscardToken); ok
+        if _, illegal := slice.linear_search(ILLEGAL_RUNES, r); illegal
         {
-            continue
-        } 
-
-        if is_whitespace(r) || sym != nil
-        {
+            unread_rune(input, pos)
             break
         }
     }
 
     str.reader_unread_rune(input)
     unread_rune(&copy, &endPos)
-    word, wordPos, ok = input.s[input.i:copy.i], pos^, true
+
+    str := input.s[input.i:copy.i]
+    if t := get_keyword_token(str, pos^); t != nil
+    {
+        token = t
+    }
+    else
+    {
+        token = IdentfierToken{Position = pos^, Value = str}
+    }
+
     input^ = copy
     pos^ = endPos
 
@@ -161,12 +159,4 @@ unread_rune :: proc(input : ^str.Reader, pos : ^TokenPos)
 {
     str.reader_unread_rune(input)
     pos.Column -= 1
-}
-
-skip_to_eol :: proc(input : ^str.Reader, pos : ^TokenPos)
-{
-    for r in read_rune(input, pos)
-    {
-        if r == '\n' do break
-    }
 }
